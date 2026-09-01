@@ -27,7 +27,7 @@ function extractDTag(event: RelayEvent): string | null {
  * Generate a reminder `d`-tag with 128 bits of entropy (NIP-ER line 58 MUST).
  * `crypto.randomUUID()` is UUIDv4 = only 122 random bits, so use 16 raw bytes.
  */
-function randomDTag(): string {
+export function randomDTag(): string {
   const bytes = crypto.getRandomValues(new Uint8Array(16));
   return Array.from(bytes, (b) => b.toString(16).padStart(2, "0")).join("");
 }
@@ -145,7 +145,9 @@ export async function fetchReminders(pubkey: string): Promise<Reminder[]> {
   const events = await relayClient.fetchEvents({
     kinds: [KIND_EVENT_REMINDER],
     authors: [pubkey],
-    limit: 200,
+    // Bookmarks share this kind-30300 window; a heavy saver must not crowd
+    // pending reminders out of the fetch.
+    limit: 500,
   });
 
   const results = await Promise.all(events.map(decryptReminder));

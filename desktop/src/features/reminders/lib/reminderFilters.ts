@@ -2,6 +2,18 @@ import type { Reminder } from "@/features/reminders/lib/reminderTypes";
 
 const nowSeconds = () => Math.floor(Date.now() / 1_000);
 
+/**
+ * A pending reminder that is actually scheduled — it carries a `not_before`.
+ * Its complement (pending without one) is a bookmark per NIP-ER, so sharing
+ * this predicate keeps the two features partitioning kind-30300 events by
+ * construction rather than by parallel hand-written conditions.
+ */
+export function isActiveReminder(reminder: Reminder): boolean {
+  return (
+    reminder.content.status === "pending" && reminder.notBefore !== undefined
+  );
+}
+
 /** A pending reminder whose `notBefore` has arrived (`<= now`). */
 export function isDue(reminder: Reminder, now: number): boolean {
   return (

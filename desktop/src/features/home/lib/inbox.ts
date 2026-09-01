@@ -32,7 +32,17 @@ export type InboxFilter =
   | "needs_action"
   | "agent_activity"
   | "reminders"
+  | "saved"
   | "drafts";
+
+/**
+ * Filters that render a personal list with their own panel (reminders, saved,
+ * drafts) instead of the feed item list — no feed selection model, no
+ * unread-only toggle.
+ */
+export function isPersonalFilter(filter: InboxFilter): boolean {
+  return filter === "reminders" || filter === "saved" || filter === "drafts";
+}
 
 export type InboxItem = {
   avatarUrl: string | null;

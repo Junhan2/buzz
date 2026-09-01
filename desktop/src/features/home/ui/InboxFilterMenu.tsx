@@ -22,6 +22,7 @@ const INBOX_FILTER_OPTIONS: Array<{
   { value: "needs_action", label: "Needs action" },
   { value: "agent_activity", label: "Agents" },
   { value: "reminders", label: "Reminders" },
+  { value: "saved", label: "Saved" },
   { value: "drafts", label: "Drafts" },
 ];
 

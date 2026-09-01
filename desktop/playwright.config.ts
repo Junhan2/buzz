@@ -101,6 +101,7 @@ export default defineConfig({
         "**/animated-avatar.spec.ts",
         "**/reminders.spec.ts",
         "**/reminder-click-repro.spec.ts",
+        "**/bookmarks.spec.ts",
         "**/virtualization.spec.ts",
         "**/scroll-history.spec.ts",
         "**/channel-dense-second-reach.spec.ts",

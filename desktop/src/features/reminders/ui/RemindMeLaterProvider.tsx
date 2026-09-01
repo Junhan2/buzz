@@ -1,6 +1,7 @@
 import * as React from "react";
 
 import { useRemindersQuery } from "@/features/reminders/hooks";
+import { isActiveReminder } from "@/features/reminders/lib/reminderFilters";
 import type { ReminderTarget } from "@/features/reminders/lib/reminderTypes";
 import { RemindMeLaterDialog } from "./RemindMeLaterDialog";
 
@@ -39,10 +40,8 @@ export function RemindMeLaterProvider({
   const activeReminderEventIds = React.useMemo(() => {
     const ids = new Set<string>();
     for (const reminder of reminders ?? []) {
-      if (
-        reminder.content.status === "pending" &&
-        reminder.content.target?.eventId
-      ) {
+      // Bookmarks (pending without `not_before`) must not tint the message.
+      if (isActiveReminder(reminder) && reminder.content.target?.eventId) {
         ids.add(reminder.content.target.eventId);
       }
     }

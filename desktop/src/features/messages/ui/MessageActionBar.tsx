@@ -1,6 +1,8 @@
 import {
   BellOff,
   BellRing,
+  Bookmark,
+  BookmarkCheck,
   Clock,
   Copy,
   CornerUpLeft,
@@ -16,6 +18,7 @@ import {
 import * as React from "react";
 import { toast } from "sonner";
 
+import { useBookmarks } from "@/features/bookmarks/ui/BookmarkProvider";
 import { buildMessageLink } from "@/features/messages/lib/messageLink";
 import { EmojiPicker } from "@/features/custom-emoji/ui/EmojiPicker";
 import { useCustomEmoji } from "@/features/custom-emoji/hooks";
@@ -424,6 +427,10 @@ export const MessageActionBar = React.memo(function MessageActionBar({
 }) {
   const [isReactionPickerOpen, setIsReactionPickerOpen] = React.useState(false);
   const [isDropdownOpen, setIsDropdownOpen] = React.useState(false);
+  const { savedEventIds, toggleBookmark } = useBookmarks();
+  const isSaved = savedEventIds.has(message.id);
+  // Local so a toggle re-renders only this row, not every context subscriber.
+  const [isTogglingBookmark, setIsTogglingBookmark] = React.useState(false);
   const customEmoji = useCustomEmoji();
   const quickReactionEmojis = useQuickReactionEmojis(3, customEmoji);
   const quickReactionItems = React.useMemo(
@@ -609,6 +616,44 @@ export const MessageActionBar = React.memo(function MessageActionBar({
                 </Button>
               </TooltipTrigger>
               <TooltipContent>Copy link</TooltipContent>
+            </Tooltip>
+          ) : null}
+
+          {canCopyMessageLink(message, channelId) && message.pubkey ? (
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button
+                  aria-label={isSaved ? "Remove from saved" : "Save for later"}
+                  className={ACTION_BUTTON_CLASS}
+                  data-testid={`bookmark-message-${message.id}`}
+                  disabled={isTogglingBookmark}
+                  onClick={() => {
+                    setIsTogglingBookmark(true);
+                    void toggleBookmark({
+                      eventId: message.id,
+                      channelId,
+                      preview: message.body.slice(0, 100),
+                      authorPubkey: message.pubkey ?? "",
+                    }).finally(() => {
+                      setIsTogglingBookmark(false);
+                    });
+                  }}
+                  size="sm"
+                  type="button"
+                  variant="ghost"
+                >
+                  {isSaved ? (
+                    <BookmarkCheck
+                      className={cn(ACTION_ICON_CLASS, "text-primary")}
+                    />
+                  ) : (
+                    <Bookmark className={ACTION_ICON_CLASS} />
+                  )}
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent>
+                {isSaved ? "Remove from saved" : "Save for later"}
+              </TooltipContent>
             </Tooltip>
           ) : null}
 

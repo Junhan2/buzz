@@ -111,6 +111,49 @@ function formatReminderSourceLocation(source: ReminderSource): string {
     : `#${source.channelLabel}`;
 }
 
+/** Avatar + author + "in #channel" line shared by reminder and saved rows. */
+export function ReminderSourceLine({ source }: { source: ReminderSource }) {
+  return (
+    <div className="flex min-w-0 max-w-full items-center gap-1.5 text-xs text-muted-foreground">
+      <UserAvatar
+        avatarUrl={source.avatarUrl}
+        className="h-4 w-4 shrink-0"
+        displayName={source.authorLabel}
+        size="xs"
+      />
+      <span className="truncate font-medium text-foreground">
+        {source.authorLabel}
+      </span>
+      <span className="shrink-0">in</span>
+      <span className="truncate">{formatReminderSourceLocation(source)}</span>
+    </div>
+  );
+}
+
+/**
+ * Click-through for a reminder-target row: resolve the thread destination,
+ * then jump to the message in its channel. Shared by the reminder rows,
+ * the reminder detail pane, and the bookmarks Saved view.
+ */
+export function useReminderNavigation() {
+  const { goChannel } = useAppNavigation();
+  return React.useCallback(
+    async (reminder: Reminder) => {
+      const destination = await resolveReminderDestination(
+        reminder.content.target,
+      );
+      if (!destination) {
+        return;
+      }
+      void goChannel(destination.channelId, {
+        messageId: destination.messageId,
+        threadRootId: destination.threadRootId,
+      });
+    },
+    [goChannel],
+  );
+}
+
 function ReminderRow({
   isSelected = false,
   presentation = "card",
@@ -188,23 +231,7 @@ function ReminderRow({
         }}
         type="button"
       >
-        {source ? (
-          <div className="flex min-w-0 max-w-full items-center gap-1.5 text-xs text-muted-foreground">
-            <UserAvatar
-              avatarUrl={source.avatarUrl}
-              className="h-4 w-4 shrink-0"
-              displayName={source.authorLabel}
-              size="xs"
-            />
-            <span className="truncate font-medium text-foreground">
-              {source.authorLabel}
-            </span>
-            <span className="shrink-0">in</span>
-            <span className="truncate">
-              {formatReminderSourceLocation(source)}
-            </span>
-          </div>
-        ) : null}
+        {source ? <ReminderSourceLine source={source} /> : null}
         <p className="max-w-full truncate text-sm font-medium">
           {reminder.content.target?.preview ||
             reminder.content.note ||
@@ -274,24 +301,8 @@ export function RemindersPanel({
 }) {
   const remindersQuery = useRemindersQuery(pubkey);
   const reminders = remindersQuery.data;
-  const { goChannel } = useAppNavigation();
   const sources = useReminderSources(reminders ?? []);
-
-  const handleNavigate = React.useCallback(
-    async (reminder: Reminder) => {
-      const destination = await resolveReminderDestination(
-        reminder.content.target,
-      );
-      if (!destination) {
-        return;
-      }
-      void goChannel(destination.channelId, {
-        messageId: destination.messageId,
-        threadRootId: destination.threadRootId,
-      });
-    },
-    [goChannel],
-  );
+  const handleNavigate = useReminderNavigation();
 
   const groups = React.useMemo(
     () => groupReminders(reminders ?? [], includeDone),
@@ -372,7 +383,7 @@ export function ReminderDetailPane({
   pubkey: string;
   reminder: Reminder | null;
 }) {
-  const { goChannel } = useAppNavigation();
+  const navigateToReminder = useReminderNavigation();
   const reminderList = React.useMemo(
     () => (reminder ? [reminder] : []),
     [reminder],
@@ -402,15 +413,8 @@ export function ReminderDetailPane({
   const preview =
     reminder.content.target?.preview || reminder.content.note || "Reminder";
 
-  const handleNavigate = async () => {
-    const destination = await resolveReminderDestination(
-      reminder.content.target,
-    );
-    if (!destination) return;
-    void goChannel(destination.channelId, {
-      messageId: destination.messageId,
-      threadRootId: destination.threadRootId,
-    });
+  const handleNavigate = () => {
+    void navigateToReminder(reminder);
   };
 
   return (

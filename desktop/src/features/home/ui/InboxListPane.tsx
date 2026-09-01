@@ -11,10 +11,12 @@ import * as React from "react";
 
 import {
   getInboxTypeLabel,
+  isPersonalFilter,
   type InboxFilter,
   type InboxItem,
   type InboxTypeLabel,
 } from "@/features/home/lib/inbox";
+import { SavedPanel } from "@/features/bookmarks/ui/SavedPanel";
 import { buildInboxListRows } from "@/features/home/lib/inboxListRows";
 import { hasRenderedVideoAttachment } from "@/features/messages/lib/videoReviewContext";
 import { getThreadReference } from "@/features/messages/lib/threading";
@@ -60,6 +62,7 @@ const INBOX_EMPTY_STATE_TITLES: Record<InboxFilter, string> = {
   needs_action: "Nothing needs action",
   agent_activity: "No agent updates found",
   reminders: "No reminders",
+  saved: "No saved messages",
   drafts: "No drafts",
 };
 
@@ -71,6 +74,7 @@ const INBOX_UNREAD_EMPTY_STATE_TITLES: Record<InboxFilter, string> = {
   needs_action: "No unread items needing action",
   agent_activity: "No unread agent updates",
   reminders: "No unread reminders",
+  saved: "No unread saved messages",
   drafts: "No unread drafts",
 };
 
@@ -271,6 +275,7 @@ export function InboxListPane({
 }: InboxListPaneProps) {
   const isReminders = filter === "reminders";
   const isDrafts = filter === "drafts";
+  const isSaved = filter === "saved";
   const isMixedInboxView = filter === "all";
   const scrollRef = React.useRef<HTMLDivElement>(null);
   const inboxRows = React.useMemo(
@@ -622,7 +627,7 @@ export function InboxListPane({
                   <div
                     className={cn(
                       "flex min-h-9 items-center justify-between gap-3 rounded-lg px-2 py-1.5",
-                      (isReminders || isDrafts) && "opacity-50",
+                      isPersonalFilter(filter) && "opacity-50",
                     )}
                   >
                     <label
@@ -635,7 +640,7 @@ export function InboxListPane({
                       checked={unreadOnly}
                       className="shadow-none [&>span]:shadow-none"
                       data-testid="inbox-unread-only-toggle"
-                      disabled={isReminders || isDrafts}
+                      disabled={isPersonalFilter(filter)}
                       id="inbox-unread-only-switch"
                       onCheckedChange={onUnreadOnlyChange}
                     />
@@ -683,6 +688,13 @@ export function InboxListPane({
               selectedReminderId={selectedReminderId}
             />
           ) : null}
+        </div>
+      ) : isSaved ? (
+        <div
+          className="-mt-13 flex min-h-0 flex-1 flex-col overflow-hidden pt-13"
+          data-testid="home-inbox-saved"
+        >
+          <SavedPanel />
         </div>
       ) : isDrafts ? (
         <div

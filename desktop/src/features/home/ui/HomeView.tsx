@@ -10,6 +10,7 @@ import {
   type InboxFilter,
   type InboxReply,
   buildInboxItems,
+  isPersonalFilter,
   findInboxItemByEventId,
   formatInboxFullTimestamp,
   getInboxItemConversationId,
@@ -119,7 +120,7 @@ export function HomeView({
     useHistorySearchState(INBOX_SEARCH_KEYS);
   const isReminders = filter === "reminders";
   const isDrafts = filter === "drafts";
-  const isMessagesMode = !isReminders && !isDrafts;
+  const isMessagesMode = !isPersonalFilter(filter);
   const allowMixedPersonalSelection = filter === "all";
   const {
     drafts: {
@@ -552,12 +553,9 @@ export function HomeView({
       setSelectedReminderId(null);
       setFilter(nextFilter);
 
-      if (
-        nextFilter === "reminders" ||
-        nextFilter === "drafts" ||
-        selection.preserveSelection
-      ) {
-        if (nextFilter === "reminders" || nextFilter === "drafts") {
+      const nextIsPersonal = isPersonalFilter(nextFilter);
+      if (nextIsPersonal || selection.preserveSelection) {
+        if (nextIsPersonal) {
           setAutoSelectedEventId(null);
           applyInboxSearchPatch({ item: null });
         }

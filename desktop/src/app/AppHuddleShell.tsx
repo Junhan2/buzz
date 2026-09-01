@@ -3,6 +3,7 @@ import { AppHuddleBar } from "@/app/AppHuddleBar";
 import * as BuzzTheme from "@/app/BuzzThemeSurfaces";
 import { HuddleProvider, useHuddle } from "@/features/huddle";
 import { HUDDLE_SHORTCUT_EVENT } from "@/shared/lib/keyboard-shortcuts";
+import { BookmarkProvider } from "@/features/bookmarks/ui/BookmarkProvider";
 import { RemindMeLaterProvider } from "@/features/reminders/ui/RemindMeLaterProvider";
 import { cn } from "@/shared/lib/cn";
 
@@ -67,40 +68,42 @@ export function AppHuddleShell({
     >
       <HuddleShortcutHandler>
         <RemindMeLaterProvider pubkey={currentPubkey}>
-          <div
-            className="buzz-huddle-shell relative h-dvh overflow-hidden overscroll-none"
-            data-huddle-open={isDrawerOpen}
-            data-huddle-window={isRoom}
-          >
+          <BookmarkProvider pubkey={currentPubkey}>
             <div
-              aria-hidden="true"
-              className={cn(
-                "buzz-huddle-drawer-backdrop",
-                isDrawerOpen && "buzz-huddle-drawer-backdrop-open",
-              )}
-            />
-            <div
-              className={cn(
-                "buzz-huddle-app-surface z-10 flex min-h-0 flex-row overflow-hidden bg-background",
-                isDrawerOpen &&
-                  (isRoom
-                    ? "buzz-huddle-app-surface-room-open"
-                    : "buzz-huddle-app-surface-open"),
-              )}
+              className="buzz-huddle-shell relative h-dvh overflow-hidden overscroll-none"
+              data-huddle-open={isDrawerOpen}
+              data-huddle-window={isRoom}
             >
-              <BuzzTheme.GradientLayer />
-              {children}
-            </div>
-            {isRoom || !isCompanionOpen ? (
-              <div className="buzz-huddle-drawer-slot absolute inset-x-0 bottom-0 z-[2] h-(--buzz-huddle-drawer-height)">
-                <AppHuddleBar
-                  mode={isRoom ? "room" : "main"}
-                  onOpenHuddleWindow={isRoom ? undefined : onCompanionOpen}
-                  onVisibilityChange={onVisibilityChange}
-                />
+              <div
+                aria-hidden="true"
+                className={cn(
+                  "buzz-huddle-drawer-backdrop",
+                  isDrawerOpen && "buzz-huddle-drawer-backdrop-open",
+                )}
+              />
+              <div
+                className={cn(
+                  "buzz-huddle-app-surface z-10 flex min-h-0 flex-row overflow-hidden bg-background",
+                  isDrawerOpen &&
+                    (isRoom
+                      ? "buzz-huddle-app-surface-room-open"
+                      : "buzz-huddle-app-surface-open"),
+                )}
+              >
+                <BuzzTheme.GradientLayer />
+                {children}
               </div>
-            ) : null}
-          </div>
+              {isRoom || !isCompanionOpen ? (
+                <div className="buzz-huddle-drawer-slot absolute inset-x-0 bottom-0 z-[2] h-(--buzz-huddle-drawer-height)">
+                  <AppHuddleBar
+                    mode={isRoom ? "room" : "main"}
+                    onOpenHuddleWindow={isRoom ? undefined : onCompanionOpen}
+                    onVisibilityChange={onVisibilityChange}
+                  />
+                </div>
+              ) : null}
+            </div>
+          </BookmarkProvider>
         </RemindMeLaterProvider>
       </HuddleShortcutHandler>
     </HuddleProvider>
