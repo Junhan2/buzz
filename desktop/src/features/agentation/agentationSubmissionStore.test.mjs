@@ -25,6 +25,9 @@ test("an ambiguous submission retains the exact signed event for retry", () => {
   retainAgentationSubmission("scope", {
     fingerprint: "batch",
     submissionId: "submission",
+    annotationIds: ["annotation-a"],
+    channelId: "channel",
+    agentPubkey: "agent",
     event,
   });
 

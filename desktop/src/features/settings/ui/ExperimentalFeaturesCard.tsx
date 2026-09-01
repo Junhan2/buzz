@@ -5,9 +5,13 @@ import { useIdentityQuery } from "@/shared/api/hooks";
 import {
   AGENTATION_PENDING_CHANGE,
   agentationScope,
-  clearAllAgentationAnnotations,
   readAllAgentationAnnotations,
 } from "@/features/agentation/agentationPendingStore";
+import {
+  discardAgentationPendingBundle,
+  readAgentationPendingBundle,
+} from "@/features/agentation/agentationOffboarding";
+import { readRetainedAgentationSubmission } from "@/features/agentation/agentationSubmissionStore";
 import { setAgentManagedProfiles } from "@/shared/api/tauri";
 import { desktopFeatures, useFeatureToggle } from "@/shared/features";
 import type { FeatureDefinition } from "@/shared/features";
@@ -92,8 +96,9 @@ function AgentationFeatureRow({ feature }: { feature: FeatureDefinition }) {
   };
 
   const exportPending = () => {
+    const bundle = readAgentationPendingBundle(scope);
     const url = URL.createObjectURL(
-      new Blob([JSON.stringify(pending, null, 2)], {
+      new Blob([JSON.stringify(bundle, null, 2)], {
         type: "application/json",
       }),
     );
@@ -120,7 +125,10 @@ function AgentationFeatureRow({ feature }: { feature: FeatureDefinition }) {
         checked={enabled}
         data-testid={switchId}
         onCheckedChange={(value) => {
-          if (!value && pending.length > 0) {
+          if (
+            !value &&
+            (pending.length > 0 || readRetainedAgentationSubmission(scope))
+          ) {
             setOffboardingOpen(true);
             return;
           }
@@ -148,7 +156,7 @@ function AgentationFeatureRow({ feature }: { feature: FeatureDefinition }) {
             </Button>
             <Button
               onClick={() => {
-                clearAllAgentationAnnotations(scope);
+                discardAgentationPendingBundle(scope);
                 disableAgentation();
               }}
               variant="destructive"

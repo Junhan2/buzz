@@ -51,3 +51,18 @@ test("discard clears every route in only the selected scope", () => {
   assert.deepEqual(readAllAgentationAnnotations(scope), []);
   assert.equal(readAllAgentationAnnotations("other").length, 1);
 });
+
+test("scope prefix boundaries prevent read and clear collisions", () => {
+  const scope = "alice";
+  const collidingScope = "alice-extra";
+  localStorage.setItem(
+    `feedback-annotations-${agentationPathname(collidingScope, "/one")}`,
+    JSON.stringify([{ id: "other-scope" }]),
+  );
+
+  assert.deepEqual(readAllAgentationAnnotations(scope), []);
+  clearAllAgentationAnnotations(scope);
+  assert.deepEqual(readAllAgentationAnnotations(collidingScope), [
+    { id: "other-scope" },
+  ]);
+});

@@ -40,13 +40,28 @@ type Status =
 export function AgentationExperimentRoot() {
   const identity = useIdentityQuery();
   const { activeCommunity } = useCommunities();
-  const channelsQuery = useChannelsQuery();
-  const agentsQuery = useRelayAgentsQuery();
-  const [destination, setDestination] = useAgentationDestination(
+  const storageScope = agentationScope(
     activeCommunity?.relayUrl,
     identity.data?.pubkey,
   );
-  const storageScope = agentationScope(
+  return (
+    <ScopedAgentationExperimentRoot
+      key={storageScope}
+      storageScope={storageScope}
+    />
+  );
+}
+
+function ScopedAgentationExperimentRoot({
+  storageScope,
+}: {
+  storageScope: string;
+}) {
+  const identity = useIdentityQuery();
+  const { activeCommunity } = useCommunities();
+  const channelsQuery = useChannelsQuery();
+  const agentsQuery = useRelayAgentsQuery();
+  const [destination, setDestination] = useAgentationDestination(
     activeCommunity?.relayUrl,
     identity.data?.pubkey,
   );
@@ -60,24 +75,28 @@ export function AgentationExperimentRoot() {
   const inFlight = React.useRef<Promise<{
     ok: boolean;
     eventId?: string;
+    acceptedAnnotationIds?: string[];
   }> | null>(null);
   const batchSubmission = React.useRef<{
     fingerprint: string;
     submissionId: string;
+    annotationIds: string[];
+    channelId: string;
+    agentPubkey: string;
     event: RelayEvent;
   } | null>(readRetainedAgentationSubmission(storageScope));
-  React.useEffect(() => {
-    setAnnotations(readAgentationAnnotations(storageScope) as Annotation[]);
-    setStatus({ type: "idle" });
-    batchSubmission.current = readRetainedAgentationSubmission(storageScope);
-  }, [storageScope]);
-
   React.useEffect(() => {
     emitAgentationPendingChange(annotations.length);
   }, [annotations]);
 
+  const retainedDestination = batchSubmission.current
+    ? {
+        channelId: batchSubmission.current.channelId,
+        agentPubkey: batchSubmission.current.agentPubkey,
+      }
+    : null;
   const resolved = resolveAgentationDestination(
-    destination,
+    retainedDestination ?? destination,
     channelsQuery.data ?? [],
     agentsQuery.data ?? [],
     identity.data?.pubkey,
@@ -86,8 +105,15 @@ export function AgentationExperimentRoot() {
   const submit = React.useCallback(
     (output: string, batch: Annotation[]) => {
       if (inFlight.current) return inFlight.current;
+      const retainedSubmission = batchSubmission.current;
+      const submitDestination = retainedSubmission
+        ? {
+            channelId: retainedSubmission.channelId,
+            agentPubkey: retainedSubmission.agentPubkey,
+          }
+        : destination;
       const current = resolveAgentationDestination(
-        destination,
+        submitDestination,
         channelsQuery.data ?? [],
         agentsQuery.data ?? [],
         identity.data?.pubkey,
@@ -108,17 +134,23 @@ export function AgentationExperimentRoot() {
         output,
         ...batch.map((annotation) => annotation.id).sort(),
       ].join(":");
-      const retained =
-        batchSubmission.current?.fingerprint === fingerprint
-          ? batchSubmission.current
-          : null;
+      const retained = retainedSubmission;
       const submissionId = retained?.submissionId ?? crypto.randomUUID();
-      const content = formatAgentationMessage(agent.name, output, submissionId);
+      const content =
+        retained?.event.content ??
+        formatAgentationMessage(agent.name, output, submissionId);
       const prepare = retained
         ? Promise.resolve(retained.event)
         : createRelayMessageEvent(channel.id, content, [agent.pubkey]).then(
             (event) => {
-              const submission = { fingerprint, submissionId, event };
+              const submission = {
+                fingerprint,
+                submissionId,
+                annotationIds: batch.map((annotation) => annotation.id),
+                channelId: channel.id,
+                agentPubkey: agent.pubkey,
+                event,
+              };
               batchSubmission.current = submission;
               retainAgentationSubmission(storageScope, submission);
               return event;
@@ -143,12 +175,21 @@ export function AgentationExperimentRoot() {
           batchSubmission.current = null;
           clearRetainedAgentationSubmission(storageScope);
           setAnnotations((existing) => {
-            const accepted = new Set(batch.map((annotation) => annotation.id));
+            const accepted = new Set(
+              retained?.annotationIds ??
+                batch.map((annotation) => annotation.id),
+            );
             return existing.filter(
               (annotation) => !accepted.has(annotation.id),
             );
           });
-          return { ok: true, eventId: event.id };
+          return {
+            ok: true,
+            eventId: event.id,
+            acceptedAnnotationIds:
+              retained?.annotationIds ??
+              batch.map((annotation) => annotation.id),
+          };
         })
         .catch((error: unknown) => {
           setStatus({
@@ -197,8 +238,16 @@ export function AgentationExperimentRoot() {
             ),
           )
         }
-        onAnnotationsClear={() => setAnnotations([])}
+        onAnnotationsClear={(cleared) => {
+          const clearedIds = new Set(
+            cleared.map((annotation) => annotation.id),
+          );
+          setAnnotations((current) =>
+            current.filter((annotation) => !clearedIds.has(annotation.id)),
+          );
+        }}
         onSubmit={submit}
+        submitEnabled={resolved.valid}
       />
       <aside
         className="fixed bottom-20 right-4 z-2147483646 w-[min(25rem,calc(100vw-2rem))] rounded-xl border border-border/70 bg-background/95 p-3 shadow-xl backdrop-blur"

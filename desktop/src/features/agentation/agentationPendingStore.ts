@@ -13,7 +13,7 @@ export function agentationPathname(
 }
 
 function scopeStoragePrefix(scope: string) {
-  return `${STORAGE_PREFIX}/buzz/${encodeURIComponent(scope)}`;
+  return `${STORAGE_PREFIX}/buzz/${encodeURIComponent(scope)}/`;
 }
 
 export function readAgentationAnnotations(scope: string): unknown[] {
