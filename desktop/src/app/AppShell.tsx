@@ -67,6 +67,7 @@ import { useArchiveAgentMetricsBridge } from "@/features/local-archive/useArchiv
 import { useObserverArchiveReconciliation } from "@/features/local-archive/useObserverArchiveSeed";
 import { useAgentMetricArchiveSeed } from "@/features/local-archive/useAgentMetricArchiveSeed";
 import { useProfileQuery } from "@/features/profile/hooks";
+import { AgentationExperimentRoot } from "@/features/agentation/AgentationExperimentRoot";
 import { SendFeedbackController } from "@/features/settings/ui/SendFeedbackController";
 import {
   DEFAULT_SETTINGS_SECTION,
@@ -982,6 +983,7 @@ export function AppShell() {
                     }}
                     relayUrl={communitiesHook.activeCommunity?.relayUrl}
                   />
+                  <AgentationExperimentRoot />
                   <SendFeedbackController
                     onOpenChange={setIsSendFeedbackOpen}
                     open={isSendFeedbackOpen}

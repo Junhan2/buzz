@@ -1,3 +1,4 @@
+import { AgentationSettings } from "@/features/agentation/AgentationSettings";
 import { setAgentManagedProfiles } from "@/shared/api/tauri";
 import { desktopFeatures, useFeatureToggle } from "@/shared/features";
 import type { FeatureDefinition } from "@/shared/features";
@@ -10,7 +11,7 @@ function FeatureRow({ feature }: { feature: FeatureDefinition }) {
   const switchId = `feature-toggle-${feature.id}`;
 
   return (
-    <SettingsOptionRow>
+    <SettingsOptionRow className="flex-wrap">
       <div className="min-w-0 flex-1">
         <p className="text-sm font-medium" id={`${switchId}-label`}>
           {feature.name}
@@ -35,6 +36,9 @@ function FeatureRow({ feature }: { feature: FeatureDefinition }) {
           }
         }}
       />
+      {feature.id === "agentationDesign" && enabled ? (
+        <AgentationSettings />
+      ) : null}
     </SettingsOptionRow>
   );
 }

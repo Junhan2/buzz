@@ -1,0 +1,194 @@
+diff --git a/dist/index.d.mts b/dist/index.d.mts
+index 74302421cdde73d3b1d58952473adb0d744a2b8c..60a80883f76e6db0827feb336eb79107428e23ab 100644
+--- a/dist/index.d.mts
++++ b/dist/index.d.mts
+@@ -101,7 +101,9 @@ type PageFeedbackToolbarCSSProps = {
+     /** Callback fired when the copy button is clicked. Receives the markdown output. */
+     onCopy?: (markdown: string) => void;
+     /** Callback fired when "Send to Agent" is clicked. Receives the markdown output and annotations. */
+-    onSubmit?: (output: string, annotations: Annotation[]) => void;
++    onSubmit?: (output: string, annotations: Annotation[]) => Promise<{ ok: boolean; eventId?: string; error?: string }>;
++    /** Scope local annotation storage to one signed-in identity/community. */
++    storageScope?: string;
+     /** Whether to copy to clipboard when the copy button is clicked. Defaults to true. */
+     copyToClipboard?: boolean;
+     /** Server URL for sync (e.g., "http://localhost:4747"). If not provided, uses localStorage only. */
+diff --git a/dist/index.d.ts b/dist/index.d.ts
+index 74302421cdde73d3b1d58952473adb0d744a2b8c..60a80883f76e6db0827feb336eb79107428e23ab 100644
+--- a/dist/index.d.ts
++++ b/dist/index.d.ts
+@@ -101,7 +101,9 @@ type PageFeedbackToolbarCSSProps = {
+     /** Callback fired when the copy button is clicked. Receives the markdown output. */
+     onCopy?: (markdown: string) => void;
+     /** Callback fired when "Send to Agent" is clicked. Receives the markdown output and annotations. */
+-    onSubmit?: (output: string, annotations: Annotation[]) => void;
++    onSubmit?: (output: string, annotations: Annotation[]) => Promise<{ ok: boolean; eventId?: string; error?: string }>;
++    /** Scope local annotation storage to one signed-in identity/community. */
++    storageScope?: string;
+     /** Whether to copy to clipboard when the copy button is clicked. Defaults to true. */
+     copyToClipboard?: boolean;
+     /** Server URL for sync (e.g., "http://localhost:4747"). If not provided, uses localStorage only. */
+diff --git a/dist/index.js b/dist/index.js
+index 07036659fc11b8a3c9d300536631056ec3f58297..a1a86c2516be13c66c88934f48cfb3a84d2772e9 100644
+--- a/dist/index.js
++++ b/dist/index.js
+@@ -8510,7 +8510,7 @@ function PageFeedbackToolbarCSS({
+   const popupRef = (0, import_react8.useRef)(null);
+   const editPopupRef = (0, import_react8.useRef)(null);
+   const scrollTimeoutRef = (0, import_react8.useRef)(null);
+-  const pathname = typeof window !== "undefined" ? window.location.pathname : "/";
++  const pathname = typeof window !== "undefined" ? `${storageScope ? `/buzz/${encodeURIComponent(storageScope)}` : ""}${window.location.pathname}` : "/";
+   (0, import_react8.useEffect)(() => {
+     if (showSettings) {
+       setShowSettingsVisible(true);
+@@ -10483,15 +10483,22 @@ function PageFeedbackToolbarCSS({
+         output += "\n" + rearrangeOutput;
+       }
+     }
+-    if (onSubmit) {
+-      onSubmit(output, annotations);
+-    }
+     setSendState("sending");
+-    await new Promise((resolve) => originalSetTimeout(resolve, 150));
+-    const success = await fireWebhook("submit", { output, annotations }, true);
++    let success = false;
++    try {
++      if (onSubmit) {
++        const result = await onSubmit(output, annotations);
++        success = result.ok;
++      } else {
++        await new Promise((resolve) => originalSetTimeout(resolve, 150));
++        success = await fireWebhook("submit", { output, annotations }, true);
++      }
++    } catch {
++      success = false;
++    }
+     setSendState(success ? "sent" : "failed");
+     originalSetTimeout(() => setSendState("idle"), 2500);
+-    if (success && settings.autoClearAfterCopy) {
++    if (success) {
+       originalSetTimeout(() => clearAll(), 500);
+     }
+   }, [
+@@ -10673,8 +10680,8 @@ function PageFeedbackToolbarCSS({
+         }
+       }
+       if (e.key === "s" || e.key === "S") {
+-        const hasValidWebhook = isValidUrl(settings.webhookUrl) || isValidUrl(webhookUrl || "");
+-        if (annotations.length > 0 && hasValidWebhook && sendState === "idle") {
++        const hasSubmitTarget = !!onSubmit || isValidUrl(settings.webhookUrl) || isValidUrl(webhookUrl || "");
++        if (annotations.length > 0 && hasSubmitTarget && sendState === "idle") {
+           e.preventDefault();
+           hideTooltipsUntilMouseLeave();
+           sendToWebhook();
+@@ -10694,6 +10701,7 @@ function PageFeedbackToolbarCSS({
+     annotations.length,
+     settings.webhookUrl,
+     webhookUrl,
++    onSubmit,
+     sendState,
+     sendToWebhook,
+     toggleFreeze,
+@@ -10883,7 +10891,7 @@ function PageFeedbackToolbarCSS({
+                       /* @__PURE__ */ (0, import_jsx_runtime14.jsxs)(
+                         "div",
+                         {
+-                          className: `${styles_module_default4.buttonWrapper} ${styles_module_default4.sendButtonWrapper} ${isActive && !settings.webhooksEnabled && (isValidUrl(settings.webhookUrl) || isValidUrl(webhookUrl || "")) ? styles_module_default4.sendButtonVisible : ""}`,
++                          className: `${styles_module_default4.buttonWrapper} ${styles_module_default4.sendButtonWrapper} ${isActive && (onSubmit || !settings.webhooksEnabled && (isValidUrl(settings.webhookUrl) || isValidUrl(webhookUrl || ""))) ? styles_module_default4.sendButtonVisible : ""}`,
+                           children: [
+                             /* @__PURE__ */ (0, import_jsx_runtime14.jsxs)(
+                               "button",
+@@ -10894,9 +10902,9 @@ function PageFeedbackToolbarCSS({
+                                   hideTooltipsUntilMouseLeave();
+                                   sendToWebhook();
+                                 },
+-                                disabled: !hasAnnotations || !isValidUrl(settings.webhookUrl) && !isValidUrl(webhookUrl || "") || sendState === "sending",
++                                disabled: !hasAnnotations || !onSubmit && !isValidUrl(settings.webhookUrl) && !isValidUrl(webhookUrl || "") || sendState === "sending",
+                                 "data-no-hover": sendState === "sent" || sendState === "failed",
+-                                tabIndex: isValidUrl(settings.webhookUrl) || isValidUrl(webhookUrl || "") ? 0 : -1,
++                                tabIndex: onSubmit || isValidUrl(settings.webhookUrl) || isValidUrl(webhookUrl || "") ? 0 : -1,
+                                 children: [
+                                   /* @__PURE__ */ (0, import_jsx_runtime14.jsx)(IconSendArrow, { size: 24, state: sendState }),
+                                   hasAnnotations && sendState === "idle" && /* @__PURE__ */ (0, import_jsx_runtime14.jsx)(
+diff --git a/dist/index.mjs b/dist/index.mjs
+index b6662bd6b8bcc9555e22a4d1a0de99198e0c11b5..5ad82de385a03cedaa38fb3f0df4bb0e2241e9a9 100644
+--- a/dist/index.mjs
++++ b/dist/index.mjs
+@@ -8426,7 +8426,7 @@ function PageFeedbackToolbarCSS({
+   const popupRef = useRef6(null);
+   const editPopupRef = useRef6(null);
+   const scrollTimeoutRef = useRef6(null);
+-  const pathname = typeof window !== "undefined" ? window.location.pathname : "/";
++  const pathname = typeof window !== "undefined" ? `${storageScope ? `/buzz/${encodeURIComponent(storageScope)}` : ""}${window.location.pathname}` : "/";
+   useEffect6(() => {
+     if (showSettings) {
+       setShowSettingsVisible(true);
+@@ -10399,15 +10399,22 @@ function PageFeedbackToolbarCSS({
+         output += "\n" + rearrangeOutput;
+       }
+     }
+-    if (onSubmit) {
+-      onSubmit(output, annotations);
+-    }
+     setSendState("sending");
+-    await new Promise((resolve) => originalSetTimeout(resolve, 150));
+-    const success = await fireWebhook("submit", { output, annotations }, true);
++    let success = false;
++    try {
++      if (onSubmit) {
++        const result = await onSubmit(output, annotations);
++        success = result.ok;
++      } else {
++        await new Promise((resolve) => originalSetTimeout(resolve, 150));
++        success = await fireWebhook("submit", { output, annotations }, true);
++      }
++    } catch {
++      success = false;
++    }
+     setSendState(success ? "sent" : "failed");
+     originalSetTimeout(() => setSendState("idle"), 2500);
+-    if (success && settings.autoClearAfterCopy) {
++    if (success) {
+       originalSetTimeout(() => clearAll(), 500);
+     }
+   }, [
+@@ -10589,8 +10596,8 @@ function PageFeedbackToolbarCSS({
+         }
+       }
+       if (e.key === "s" || e.key === "S") {
+-        const hasValidWebhook = isValidUrl(settings.webhookUrl) || isValidUrl(webhookUrl || "");
+-        if (annotations.length > 0 && hasValidWebhook && sendState === "idle") {
++        const hasSubmitTarget = !!onSubmit || isValidUrl(settings.webhookUrl) || isValidUrl(webhookUrl || "");
++        if (annotations.length > 0 && hasSubmitTarget && sendState === "idle") {
+           e.preventDefault();
+           hideTooltipsUntilMouseLeave();
+           sendToWebhook();
+@@ -10610,6 +10617,7 @@ function PageFeedbackToolbarCSS({
+     annotations.length,
+     settings.webhookUrl,
+     webhookUrl,
++    onSubmit,
+     sendState,
+     sendToWebhook,
+     toggleFreeze,
+@@ -10799,7 +10807,7 @@ function PageFeedbackToolbarCSS({
+                       /* @__PURE__ */ jsxs13(
+                         "div",
+                         {
+-                          className: `${styles_module_default4.buttonWrapper} ${styles_module_default4.sendButtonWrapper} ${isActive && !settings.webhooksEnabled && (isValidUrl(settings.webhookUrl) || isValidUrl(webhookUrl || "")) ? styles_module_default4.sendButtonVisible : ""}`,
++                          className: `${styles_module_default4.buttonWrapper} ${styles_module_default4.sendButtonWrapper} ${isActive && (onSubmit || !settings.webhooksEnabled && (isValidUrl(settings.webhookUrl) || isValidUrl(webhookUrl || ""))) ? styles_module_default4.sendButtonVisible : ""}`,
+                           children: [
+                             /* @__PURE__ */ jsxs13(
+                               "button",
+@@ -10810,9 +10818,9 @@ function PageFeedbackToolbarCSS({
+                                   hideTooltipsUntilMouseLeave();
+                                   sendToWebhook();
+                                 },
+-                                disabled: !hasAnnotations || !isValidUrl(settings.webhookUrl) && !isValidUrl(webhookUrl || "") || sendState === "sending",
++                                disabled: !hasAnnotations || !onSubmit && !isValidUrl(settings.webhookUrl) && !isValidUrl(webhookUrl || "") || sendState === "sending",
+                                 "data-no-hover": sendState === "sent" || sendState === "failed",
+-                                tabIndex: isValidUrl(settings.webhookUrl) || isValidUrl(webhookUrl || "") ? 0 : -1,
++                                tabIndex: onSubmit || isValidUrl(settings.webhookUrl) || isValidUrl(webhookUrl || "") ? 0 : -1,
+                                 children: [
+                                   /* @__PURE__ */ jsx14(IconSendArrow, { size: 24, state: sendState }),
+                                   hasAnnotations && sendState === "idle" && /* @__PURE__ */ jsx14(
