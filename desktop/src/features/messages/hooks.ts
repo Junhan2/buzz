@@ -493,6 +493,8 @@ export function useSendMessageMutation(
       sentFromThreadRootId?: string | null;
       sentFromThreadRootExcerpt?: string | null;
       transport?: "auto" | "http";
+      /** A caller-retained signed event for idempotent replay after ambiguity. */
+      signedEvent?: RelayEvent;
     },
     MessageQueryContext | undefined
   >({
@@ -507,6 +509,7 @@ export function useSendMessageMutation(
       sentFromThreadRootId,
       sentFromThreadRootExcerpt,
       transport = "auto",
+      signedEvent,
     }) => {
       // Prefer a channel captured by the caller at compose time. Otherwise,
       // resolve a captured id from the shared channel cache so navigation
@@ -645,6 +648,23 @@ export function useSendMessageMutation(
           content: content.trim(),
           sig: "",
         };
+      }
+
+      if (signedEvent) {
+        if (
+          signedEvent.kind !== KIND_STREAM_MESSAGE ||
+          signedEvent.content !== content.trim() ||
+          !signedEvent.tags.some(
+            (tag) => tag[0] === "h" && tag[1] === effectiveChannel.id,
+          )
+        ) {
+          throw new Error("The retained message no longer matches this send.");
+        }
+        return relayClient.publishEvent(
+          signedEvent,
+          "Timed out while sending the message.",
+          "Failed to send the message.",
+        );
       }
 
       return relayClient.sendMessage(

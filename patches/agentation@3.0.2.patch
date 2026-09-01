@@ -1,5 +1,5 @@
 diff --git a/dist/index.d.mts b/dist/index.d.mts
-index 74302421cdde73d3b1d58952473adb0d744a2b8c..60a80883f76e6db0827feb336eb79107428e23ab 100644
+index 74302421cdde73d3b1d58952473adb0d744a2b8c..d2d7292f7c3b75a240d8c4d610fcdd00fa25e5c3 100644
 --- a/dist/index.d.mts
 +++ b/dist/index.d.mts
 @@ -101,7 +101,9 @@ type PageFeedbackToolbarCSSProps = {
@@ -13,8 +13,17 @@ index 74302421cdde73d3b1d58952473adb0d744a2b8c..60a80883f76e6db0827feb336eb79107
      /** Whether to copy to clipboard when the copy button is clicked. Defaults to true. */
      copyToClipboard?: boolean;
      /** Server URL for sync (e.g., "http://localhost:4747"). If not provided, uses localStorage only. */
+@@ -117,7 +119,7 @@ type PageFeedbackToolbarCSSProps = {
+ };
+ /** Alias for PageFeedbackToolbarCSSProps */
+ type AgentationProps = PageFeedbackToolbarCSSProps;
+-declare function PageFeedbackToolbarCSS({ demoAnnotations, demoDelay, enableDemoMode, onAnnotationAdd, onAnnotationDelete, onAnnotationUpdate, onAnnotationsClear, onCopy, onSubmit, copyToClipboard, endpoint, sessionId: initialSessionId, onSessionCreated, webhookUrl, className: userClassName, }?: PageFeedbackToolbarCSSProps): react.ReactPortal | null;
++declare function PageFeedbackToolbarCSS({ demoAnnotations, demoDelay, enableDemoMode, onAnnotationAdd, onAnnotationDelete, onAnnotationUpdate, onAnnotationsClear, onCopy, onSubmit, storageScope, copyToClipboard, endpoint, sessionId: initialSessionId, onSessionCreated, webhookUrl, className: userClassName, }?: PageFeedbackToolbarCSSProps): react.ReactPortal | null;
+
+ interface AnnotationPopupCSSProps {
+     /** Element name to display in header */
 diff --git a/dist/index.d.ts b/dist/index.d.ts
-index 74302421cdde73d3b1d58952473adb0d744a2b8c..60a80883f76e6db0827feb336eb79107428e23ab 100644
+index 74302421cdde73d3b1d58952473adb0d744a2b8c..d2d7292f7c3b75a240d8c4d610fcdd00fa25e5c3 100644
 --- a/dist/index.d.ts
 +++ b/dist/index.d.ts
 @@ -101,7 +101,9 @@ type PageFeedbackToolbarCSSProps = {
@@ -28,11 +37,28 @@ index 74302421cdde73d3b1d58952473adb0d744a2b8c..60a80883f76e6db0827feb336eb79107
      /** Whether to copy to clipboard when the copy button is clicked. Defaults to true. */
      copyToClipboard?: boolean;
      /** Server URL for sync (e.g., "http://localhost:4747"). If not provided, uses localStorage only. */
+@@ -117,7 +119,7 @@ type PageFeedbackToolbarCSSProps = {
+ };
+ /** Alias for PageFeedbackToolbarCSSProps */
+ type AgentationProps = PageFeedbackToolbarCSSProps;
+-declare function PageFeedbackToolbarCSS({ demoAnnotations, demoDelay, enableDemoMode, onAnnotationAdd, onAnnotationDelete, onAnnotationUpdate, onAnnotationsClear, onCopy, onSubmit, copyToClipboard, endpoint, sessionId: initialSessionId, onSessionCreated, webhookUrl, className: userClassName, }?: PageFeedbackToolbarCSSProps): react.ReactPortal | null;
++declare function PageFeedbackToolbarCSS({ demoAnnotations, demoDelay, enableDemoMode, onAnnotationAdd, onAnnotationDelete, onAnnotationUpdate, onAnnotationsClear, onCopy, onSubmit, storageScope, copyToClipboard, endpoint, sessionId: initialSessionId, onSessionCreated, webhookUrl, className: userClassName, }?: PageFeedbackToolbarCSSProps): react.ReactPortal | null;
+
+ interface AnnotationPopupCSSProps {
+     /** Element name to display in header */
 diff --git a/dist/index.js b/dist/index.js
-index 07036659fc11b8a3c9d300536631056ec3f58297..a1a86c2516be13c66c88934f48cfb3a84d2772e9 100644
+index 07036659fc11b8a3c9d300536631056ec3f58297..3a11b0fb0b8cc1011a5e022a3c5dcd21fd8421bf 100644
 --- a/dist/index.js
 +++ b/dist/index.js
-@@ -8510,7 +8510,7 @@ function PageFeedbackToolbarCSS({
+@@ -8319,6 +8319,7 @@ function PageFeedbackToolbarCSS({
+   onAnnotationsClear,
+   onCopy,
+   onSubmit,
++  storageScope,
+   copyToClipboard = true,
+   endpoint,
+   sessionId: initialSessionId,
+@@ -8510,7 +8511,7 @@ function PageFeedbackToolbarCSS({
    const popupRef = (0, import_react8.useRef)(null);
    const editPopupRef = (0, import_react8.useRef)(null);
    const scrollTimeoutRef = (0, import_react8.useRef)(null);
@@ -41,7 +67,7 @@ index 07036659fc11b8a3c9d300536631056ec3f58297..a1a86c2516be13c66c88934f48cfb3a8
    (0, import_react8.useEffect)(() => {
      if (showSettings) {
        setShowSettingsVisible(true);
-@@ -10483,15 +10483,22 @@ function PageFeedbackToolbarCSS({
+@@ -10483,15 +10484,22 @@ function PageFeedbackToolbarCSS({
          output += "\n" + rearrangeOutput;
        }
      }
@@ -70,7 +96,7 @@ index 07036659fc11b8a3c9d300536631056ec3f58297..a1a86c2516be13c66c88934f48cfb3a8
        originalSetTimeout(() => clearAll(), 500);
      }
    }, [
-@@ -10673,8 +10680,8 @@ function PageFeedbackToolbarCSS({
+@@ -10673,8 +10681,8 @@ function PageFeedbackToolbarCSS({
          }
        }
        if (e.key === "s" || e.key === "S") {
@@ -81,7 +107,7 @@ index 07036659fc11b8a3c9d300536631056ec3f58297..a1a86c2516be13c66c88934f48cfb3a8
            e.preventDefault();
            hideTooltipsUntilMouseLeave();
            sendToWebhook();
-@@ -10694,6 +10701,7 @@ function PageFeedbackToolbarCSS({
+@@ -10694,6 +10702,7 @@ function PageFeedbackToolbarCSS({
      annotations.length,
      settings.webhookUrl,
      webhookUrl,
@@ -89,7 +115,7 @@ index 07036659fc11b8a3c9d300536631056ec3f58297..a1a86c2516be13c66c88934f48cfb3a8
      sendState,
      sendToWebhook,
      toggleFreeze,
-@@ -10883,7 +10891,7 @@ function PageFeedbackToolbarCSS({
+@@ -10883,7 +10892,7 @@ function PageFeedbackToolbarCSS({
                        /* @__PURE__ */ (0, import_jsx_runtime14.jsxs)(
                          "div",
                          {
@@ -98,7 +124,7 @@ index 07036659fc11b8a3c9d300536631056ec3f58297..a1a86c2516be13c66c88934f48cfb3a8
                            children: [
                              /* @__PURE__ */ (0, import_jsx_runtime14.jsxs)(
                                "button",
-@@ -10894,9 +10902,9 @@ function PageFeedbackToolbarCSS({
+@@ -10894,9 +10903,9 @@ function PageFeedbackToolbarCSS({
                                    hideTooltipsUntilMouseLeave();
                                    sendToWebhook();
                                  },
@@ -111,10 +137,18 @@ index 07036659fc11b8a3c9d300536631056ec3f58297..a1a86c2516be13c66c88934f48cfb3a8
                                    /* @__PURE__ */ (0, import_jsx_runtime14.jsx)(IconSendArrow, { size: 24, state: sendState }),
                                    hasAnnotations && sendState === "idle" && /* @__PURE__ */ (0, import_jsx_runtime14.jsx)(
 diff --git a/dist/index.mjs b/dist/index.mjs
-index b6662bd6b8bcc9555e22a4d1a0de99198e0c11b5..5ad82de385a03cedaa38fb3f0df4bb0e2241e9a9 100644
+index b6662bd6b8bcc9555e22a4d1a0de99198e0c11b5..b5b6a508b6624f2fe469bef461f69bed9a8d94c5 100644
 --- a/dist/index.mjs
 +++ b/dist/index.mjs
-@@ -8426,7 +8426,7 @@ function PageFeedbackToolbarCSS({
+@@ -8235,6 +8235,7 @@ function PageFeedbackToolbarCSS({
+   onAnnotationsClear,
+   onCopy,
+   onSubmit,
++  storageScope,
+   copyToClipboard = true,
+   endpoint,
+   sessionId: initialSessionId,
+@@ -8426,7 +8427,7 @@ function PageFeedbackToolbarCSS({
    const popupRef = useRef6(null);
    const editPopupRef = useRef6(null);
    const scrollTimeoutRef = useRef6(null);
@@ -123,7 +157,7 @@ index b6662bd6b8bcc9555e22a4d1a0de99198e0c11b5..5ad82de385a03cedaa38fb3f0df4bb0e
    useEffect6(() => {
      if (showSettings) {
        setShowSettingsVisible(true);
-@@ -10399,15 +10399,22 @@ function PageFeedbackToolbarCSS({
+@@ -10399,15 +10400,22 @@ function PageFeedbackToolbarCSS({
          output += "\n" + rearrangeOutput;
        }
      }
@@ -152,7 +186,7 @@ index b6662bd6b8bcc9555e22a4d1a0de99198e0c11b5..5ad82de385a03cedaa38fb3f0df4bb0e
        originalSetTimeout(() => clearAll(), 500);
      }
    }, [
-@@ -10589,8 +10596,8 @@ function PageFeedbackToolbarCSS({
+@@ -10589,8 +10597,8 @@ function PageFeedbackToolbarCSS({
          }
        }
        if (e.key === "s" || e.key === "S") {
@@ -163,7 +197,7 @@ index b6662bd6b8bcc9555e22a4d1a0de99198e0c11b5..5ad82de385a03cedaa38fb3f0df4bb0e
            e.preventDefault();
            hideTooltipsUntilMouseLeave();
            sendToWebhook();
-@@ -10610,6 +10617,7 @@ function PageFeedbackToolbarCSS({
+@@ -10610,6 +10618,7 @@ function PageFeedbackToolbarCSS({
      annotations.length,
      settings.webhookUrl,
      webhookUrl,
@@ -171,7 +205,7 @@ index b6662bd6b8bcc9555e22a4d1a0de99198e0c11b5..5ad82de385a03cedaa38fb3f0df4bb0e
      sendState,
      sendToWebhook,
      toggleFreeze,
-@@ -10799,7 +10807,7 @@ function PageFeedbackToolbarCSS({
+@@ -10799,7 +10808,7 @@ function PageFeedbackToolbarCSS({
                        /* @__PURE__ */ jsxs13(
                          "div",
                          {
@@ -180,7 +214,7 @@ index b6662bd6b8bcc9555e22a4d1a0de99198e0c11b5..5ad82de385a03cedaa38fb3f0df4bb0e
                            children: [
                              /* @__PURE__ */ jsxs13(
                                "button",
-@@ -10810,9 +10818,9 @@ function PageFeedbackToolbarCSS({
+@@ -10810,9 +10819,9 @@ function PageFeedbackToolbarCSS({
                                    hideTooltipsUntilMouseLeave();
                                    sendToWebhook();
                                  },

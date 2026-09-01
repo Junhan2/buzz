@@ -7,7 +7,8 @@ import { useChannelsQuery } from "@/features/channels/hooks";
 import { useCommunities } from "@/features/communities/useCommunities";
 import { useSendMessageMutation } from "@/features/messages/hooks";
 import { useIdentityQuery } from "@/shared/api/hooks";
-import { useFeatureEnabled } from "@/shared/features";
+import { createRelayMessageEvent } from "@/shared/api/relayMessageEvent";
+import type { RelayEvent } from "@/shared/api/types";
 import { Button } from "@/shared/ui/button";
 import { AgentationDestinationFields } from "./AgentationDestinationFields";
 import {
@@ -15,6 +16,16 @@ import {
   resolveAgentationDestination,
 } from "./agentationDestination";
 import { useAgentationDestination } from "./agentationStore";
+import {
+  clearRetainedAgentationSubmission,
+  readRetainedAgentationSubmission,
+  retainAgentationSubmission,
+} from "./agentationSubmissionStore";
+import {
+  agentationScope,
+  emitAgentationPendingChange,
+  readAgentationAnnotations,
+} from "./agentationPendingStore";
 
 type Status =
   | { type: "idle" }
@@ -27,12 +38,6 @@ type Status =
     };
 
 export function AgentationExperimentRoot() {
-  const enabled = useFeatureEnabled("agentationDesign");
-  if (!enabled) return null;
-  return <EnabledAgentationExperiment />;
-}
-
-function EnabledAgentationExperiment() {
   const identity = useIdentityQuery();
   const { activeCommunity } = useCommunities();
   const channelsQuery = useChannelsQuery();
@@ -41,7 +46,13 @@ function EnabledAgentationExperiment() {
     activeCommunity?.relayUrl,
     identity.data?.pubkey,
   );
-  const [annotations, setAnnotations] = React.useState<Annotation[]>([]);
+  const storageScope = agentationScope(
+    activeCommunity?.relayUrl,
+    identity.data?.pubkey,
+  );
+  const [annotations, setAnnotations] = React.useState<Annotation[]>(
+    () => readAgentationAnnotations(storageScope) as Annotation[],
+  );
   const [pickerOpen, setPickerOpen] = React.useState(false);
   const [status, setStatus] = React.useState<Status>({ type: "idle" });
   const { goChannel } = useAppNavigation();
@@ -53,7 +64,18 @@ function EnabledAgentationExperiment() {
   const batchSubmission = React.useRef<{
     fingerprint: string;
     submissionId: string;
-  } | null>(null);
+    event: RelayEvent;
+  } | null>(readRetainedAgentationSubmission(storageScope));
+  React.useEffect(() => {
+    setAnnotations(readAgentationAnnotations(storageScope) as Annotation[]);
+    setStatus({ type: "idle" });
+    batchSubmission.current = readRetainedAgentationSubmission(storageScope);
+  }, [storageScope]);
+
+  React.useEffect(() => {
+    emitAgentationPendingChange(annotations.length);
+  }, [annotations]);
+
   const resolved = resolveAgentationDestination(
     destination,
     channelsQuery.data ?? [],
@@ -80,21 +102,37 @@ function EnabledAgentationExperiment() {
       }
       const channel = current.channel;
       const agent = current.agent;
-      const fingerprint = batch
-        .map((annotation) => annotation.id)
-        .sort()
-        .join(":");
-      const submissionId =
+      const fingerprint = [
+        channel.id,
+        agent.pubkey,
+        output,
+        ...batch.map((annotation) => annotation.id).sort(),
+      ].join(":");
+      const retained =
         batchSubmission.current?.fingerprint === fingerprint
-          ? batchSubmission.current.submissionId
-          : crypto.randomUUID();
-      batchSubmission.current = { fingerprint, submissionId };
-      const promise = send
-        .mutateAsync({
-          targetChannel: channel,
-          content: formatAgentationMessage(agent.name, output, submissionId),
-          mentionPubkeys: [agent.pubkey],
-        })
+          ? batchSubmission.current
+          : null;
+      const submissionId = retained?.submissionId ?? crypto.randomUUID();
+      const content = formatAgentationMessage(agent.name, output, submissionId);
+      const prepare = retained
+        ? Promise.resolve(retained.event)
+        : createRelayMessageEvent(channel.id, content, [agent.pubkey]).then(
+            (event) => {
+              const submission = { fingerprint, submissionId, event };
+              batchSubmission.current = submission;
+              retainAgentationSubmission(storageScope, submission);
+              return event;
+            },
+          );
+      const promise = prepare
+        .then((signedEvent) =>
+          send.mutateAsync({
+            targetChannel: channel,
+            content,
+            mentionPubkeys: [agent.pubkey],
+            signedEvent,
+          }),
+        )
         .then((event) => {
           setStatus({
             type: "sent",
@@ -103,6 +141,7 @@ function EnabledAgentationExperiment() {
             channelName: channel.name,
           });
           batchSubmission.current = null;
+          clearRetainedAgentationSubmission(storageScope);
           setAnnotations((existing) => {
             const accepted = new Set(batch.map((annotation) => annotation.id));
             return existing.filter(
@@ -127,14 +166,22 @@ function EnabledAgentationExperiment() {
       inFlight.current = promise;
       return promise;
     },
-    [agentsQuery.data, channelsQuery.data, destination, identity.data, send],
+    [
+      agentsQuery.data,
+      channelsQuery.data,
+      destination,
+      identity.data,
+      send,
+      storageScope,
+    ],
   );
 
   return (
     <>
       <Agentation
         copyToClipboard={false}
-        storageScope={`${activeCommunity?.relayUrl ?? "no-community"}:${identity.data?.pubkey ?? "no-identity"}`}
+        key={storageScope}
+        storageScope={storageScope}
         onAnnotationAdd={(annotation) =>
           setAnnotations((current) => [...current, annotation])
         }

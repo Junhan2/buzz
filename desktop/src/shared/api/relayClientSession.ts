@@ -6,7 +6,6 @@ import {
 } from "@/shared/api/tauri";
 import type { PresenceStatus, RelayEvent } from "@/shared/api/types";
 import {
-  KIND_STREAM_MESSAGE,
   KIND_TYPING_INDICATOR,
   KIND_USER_STATUS,
   CHANNEL_EVENT_KINDS,
@@ -39,6 +38,7 @@ import {
 import { getChannelReconnectRepairEvents } from "@/shared/api/channelReconnectRepair";
 import { replayLiveSubscriptions } from "@/shared/api/relayReconnectReplay";
 import { publishSessionEvent } from "@/shared/api/relayEventPublisher";
+import { createRelayMessageEvent } from "@/shared/api/relayMessageEvent";
 import { activateRateLimitIfSignalled } from "@/shared/api/relayRateLimitGate";
 import {
   fetchChunkedHistory,
@@ -256,20 +256,12 @@ export class RelayClient {
     extraTags: string[][] = [],
   ) {
     await this.ensureConnected();
-
-    const tags: string[][] = [["h", channelId]];
-    for (const pubkey of mentionPubkeys) {
-      tags.push(["p", pubkey]);
-    }
-    for (const tag of extraTags) {
-      tags.push(tag);
-    }
-
-    const event = await signRelayEvent({
-      kind: KIND_STREAM_MESSAGE,
-      content: content.trim(),
-      tags,
-    });
+    const event = await createRelayMessageEvent(
+      channelId,
+      content,
+      mentionPubkeys,
+      extraTags,
+    );
 
     return this.publishEvent(
       event,
